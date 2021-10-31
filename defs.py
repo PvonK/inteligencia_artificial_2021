@@ -8,6 +8,8 @@ from nltk.stem import WordNetLemmatizer
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import re
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
 
 ###                   ###
 #   limpieza de listas  #
@@ -16,6 +18,27 @@ import re
 def delete_empty(palabras):
     palabras = list(filter(None, palabras))
     return palabras
+
+
+def delete_spam(palabras):
+    indices = []
+    for index ,fila in palabras.iterrows():
+        #if 'PACK' in fila['tokenized_text']:
+        spam = fila['text'].find('PACK')
+        if spam > 0:
+            indices.append(index)
+    palabras = palabras.drop(indices)
+    return palabras
+
+
+def replaceGOAT(palabras):
+    
+    palabras = palabras.replace(u"\U0001F410", " greatest player of all time ")
+    palabras = palabras.replace("goat", " greatest player of all time ")
+    palabras = palabras.replace("GOAT", " greatest player of all time ")
+
+    return palabras
+
 
 
 def delete_emojis(palabras):
@@ -125,6 +148,39 @@ def POS(df):
     return df
 
 
+###                 ###
+#   Nube de Palabras  #
+###                 ###
+
+
+def word_cloud_adjetives(df):
+    adjetives = []
+    for i in df['POS_text']:
+        for j in i:
+            if j[1].startswith('J'):
+                adjetives.append(j[0])
+    adjetives = delete_empty(adjetives)
+
+    wordcloud = WordCloud(max_words=100, background_color="white").generate((' '.join(adjetives)))
+    plt.imshow(wordcloud, interpolation='bilinear')
+    plt.axis("off")
+    plt.rcParams['figure.figsize'] = [150, 150]
+    plt.show()
+
+def word_cloud_names(df):
+    names = []
+    for i in df['POS_text']:
+        for j in i:
+            if j[1] == 'NNP':
+                names.append(j[0])
+    names = delete_empty(names)
+    wordcloud = WordCloud(max_words=100, background_color="white").generate((' '.join(names)))
+    plt.imshow(wordcloud, interpolation='bilinear')
+    plt.axis("off")
+    plt.rcParams['figure.figsize'] = [150, 150]
+    plt.show()
+
+
 ###             ###
 #   Lematizacion  #
 ###             ###
@@ -174,17 +230,41 @@ def lematizacion(df):
     return df
 
 
-###                 ###
-#   Nube de Palabras  #
-###                 ###
+###          ###
+#   Polaridad  #
+###          ###
 
 
-def create_wordcloud(palabras):
-    wordcloud = WordCloud(max_words=100, background_color="white").generate(palabras)
-    plt.imshow(wordcloud, interpolation='bilinear')
-    plt.axis("off")
-    plt.rcParams['figure.figsize'] = [150, 150]
-    plt.show()
+def polaridad(df):
+
+    # nltk.download('vader_lexicon')
+
+    # conda install -c conda-forge vadersentiment
+    # acordarse de correr el script en el conda env para q no salte erroe con vaderSentiment
+    # acordarse de no correrlo con el /bin/python3
+
+    # Instanciar Analizador
+    sentiment_analyzer = SentimentIntensityAnalyzer()
+
+    df["negative"] = ""
+    df["neutral"] = ""
+    df["positive"] = ""
+    df["result"] = ""
+    for index, row in df.iterrows():
+        #Analizar cada review
+        analisis = sentiment_analyzer.polarity_scores(" ".join(row['tokenized_text']))
+        row["negative"] = analisis["neg"]
+        row["neutral"] = analisis["neu"]
+        row["positive"] = analisis["pos"]
+        # Evaluar que valores se considerarán positivo o negativo
+        if analisis['compound'] > 0.5 :
+            row["result"] = "Positive"
+        elif analisis['compound'] <  0:
+            row["result"] = "Negative"
+        else :
+            row["result"] = "Neutral"
+
+    return df
 
 
 ###    ###
@@ -196,6 +276,9 @@ def main():
 
     # se leen los requests
     df = pd.read_csv("tweet_requests.csv")
+
+    # reemplazo los emojis de cabra y las abreviaciones de GOAT por su significado literal
+    df["text"] = df["text"].apply(replaceGOAT)
 
     # tokenizacion
     df = tokenize(df)
@@ -229,6 +312,18 @@ def main():
     # se guarda el analisis POS a un csv
     df.to_csv('pos.csv')
 
+    # se hace la limpieza de spam
+    df = delete_spam(df) 
+
+    # wordcloud de adjetivos
+    word_cloud_adjetives(df)
+
+    #wordcloud de nombres propios
+    word_cloud_names(df)
+
+
+
+
     # se hace la lematizacion
     df = lematizacion(df)
 
@@ -238,8 +333,14 @@ def main():
     # se guarda la lematizacion en un csv
     df.to_csv("lemmatized.csv")
 
-    ### FALTA HACER LA POLARIZACION ###
+    ### POLARIZACION ###
 
+    df = polaridad(df)
+    df.to_csv("polarized.csv")
 
 if __name__ == "__main__":
     main()
+
+
+# palabras como "overrated" y "washed" no son vistas como negativas por el analisis y la palabra "GOAT" no es vista como positiva
+# reemplaze goat y 🐐 por "greatest player of all time"

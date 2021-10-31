@@ -20,7 +20,7 @@ url = "https://api.twitter.com/2/tweets/search/recent"
 
 # Parametros de los requests a los tweets
 params = {
-    'query': '#messi -is:retweet lang:en',
+    'query': 'messi -is:retweet lang:en',
     'tweet.fields':'created_at,author_id',
     'max_results':100
 }

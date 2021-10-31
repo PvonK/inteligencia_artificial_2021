@@ -7,7 +7,7 @@ from nltk.stem import PorterStemmer
 from nltk.stem import WordNetLemmatizer
 
 # leo los requests generados como un dataframe de pandas
-df = pd.read_csv("/home/philipp/Documents/inteligencia_artificial_2021/tweet_requests.csv")
+df = pd.read_csv("tweet_requests.csv")
 
 # filtro la columna de texto
 df = df[["text"]]
@@ -36,7 +36,8 @@ df_fdist.sort_values(by=['Frequency'], inplace=True)
 # guardo las frecuencias de las palabras en un csv 
 df_fdist.to_csv('frecuencia_palabras.csv') 
 
-# guardo los stopwords en ingles
+# guardo los stopwords en ingles 
+# sacar otras palabras irrelevantes
 stop_words = set(stopwords.words('english'))
 
 # elimino las stopwords del df con los tweets
@@ -75,3 +76,4 @@ for word, simbol in pos_simplificado:
 text = " ".join(lemmatized)
 
 # salta un error cuando j[1] es no era N A V o R
+# hacer nube de palabras para sustantivo, adjetivo y verbo y ver las palabras a limpiar
