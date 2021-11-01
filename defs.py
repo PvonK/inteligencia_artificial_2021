@@ -1,4 +1,3 @@
-from re import A
 import pandas as pd
 import nltk
 from nltk.tokenize import TweetTokenizer
@@ -23,7 +22,6 @@ def delete_empty(palabras):
 def delete_spam(palabras):
     indices = []
     for index ,fila in palabras.iterrows():
-        #if 'PACK' in fila['tokenized_text']:
         spam = fila['text'].find('PACK')
         if spam > 0:
             indices.append(index)
@@ -38,7 +36,6 @@ def replaceGOAT(palabras):
     palabras = palabras.replace("GOAT", " greatest player of all time ")
 
     return palabras
-
 
 
 def delete_emojis(palabras):
@@ -68,7 +65,7 @@ def delete_emojis(palabras):
 
 def delete_url(palabras):
     for i in range(len(palabras)):
-        if palabras[i].startswith("https"):
+        if palabras[i].startswith("http"):
             palabras[i] = ""
 
 
@@ -105,11 +102,11 @@ def tokenize(df):
 ###                           ###
 
 
-def freq_dist(df):
-    tokenized_list = df.explode('tokenized_text')
+def freq_dist(df, column):
+    tokenized_list = df.explode(column)
 
     # Obtener frecuencia de cada término
-    fdist = FreqDist(tokenized_list['tokenized_text'])
+    fdist = FreqDist(tokenized_list[column])
 
     # Convertir a dataframe
     df_fdist = pd.DataFrame.from_dict(fdist, orient='index')
@@ -252,16 +249,16 @@ def polaridad(df):
     df["result"] = ""
     for index, row in df.iterrows():
         #Analizar cada review
-        analisis = sentiment_analyzer.polarity_scores(" ".join(row['tokenized_text']))
+        analisis = sentiment_analyzer.polarity_scores(" ".join(row['lemmatized_text']))
         row["negative"] = analisis["neg"]
         row["neutral"] = analisis["neu"]
         row["positive"] = analisis["pos"]
         # Evaluar que valores se considerarán positivo o negativo
         if analisis['compound'] > 0.5 :
             row["result"] = "Positive"
-        elif analisis['compound'] <  0:
+        elif analisis['compound'] < -0.2:
             row["result"] = "Negative"
-        else :
+        else:
             row["result"] = "Neutral"
 
     return df
@@ -286,22 +283,16 @@ def main():
     # se guarda la tokenizacion en un csv
     df.to_csv('tokenized_text.csv')
 
-    # se saca la frecuencia de distribucion
-    df_dist = freq_dist(df)
-
-    # se guarda la frecuencia de distribucion en un csv
-    df_dist.to_csv('frecuencia_palabras.csv')
-
     # se buscan las stopwords en ingles
     stop_words = set(stopwords.words('english'))
+
+    # se hace la limpieza de las stopwords
+    df = remove_stopwords(df, stop_words)
 
     # se hace la limpieza de emojis, urls y simbolos
     df["tokenized_text"].apply(delete_emojis)
     df["tokenized_text"].apply(delete_url)
     df["tokenized_text"].apply(delete_hashtag)
-
-    # se hace la limpieza de las stopwords
-    df = remove_stopwords(df, stop_words)
 
     # se guardan los tweets limpiados a un csv
     df.to_csv('tweets_no_stopwords.csv')
@@ -313,16 +304,13 @@ def main():
     df.to_csv('pos.csv')
 
     # se hace la limpieza de spam
-    df = delete_spam(df) 
+    df = delete_spam(df)
 
     # wordcloud de adjetivos
     word_cloud_adjetives(df)
 
-    #wordcloud de nombres propios
+    # wordcloud de nombres propios
     word_cloud_names(df)
-
-
-
 
     # se hace la lematizacion
     df = lematizacion(df)
@@ -337,6 +325,8 @@ def main():
 
     df = polaridad(df)
     df.to_csv("polarized.csv")
+
+    print(freq_dist(df, "result"))
 
 if __name__ == "__main__":
     main()

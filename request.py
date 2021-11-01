@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 En este proyecto se analizaran los sentimientos asociados a la tendencia #messi
 
 """
-
+paginas = 10
 # Cargar valores del archivo .env en las variables de entorno
 load_dotenv()
 
@@ -31,18 +31,36 @@ headers = {
         "User-Agent":"v2FullArchiveSearchPython"
         }
 
-# realizamos la request a la api y guardamos la respuesta
-response = requests.get(url, headers=headers, params=params)
+def do_request(header, param):
 
-# Generar excepción si la respuesta no es exitosa
-if response.status_code != 200:
-    raise Exception(response.status_code, response.text)
-# print(response.json())
+    # realizamos la request a la api y guardamos la respuesta
+    response = requests.get(url, headers=header, params=param)
+
+    # Generar excepción si la respuesta no es exitosa
+    if response.status_code != 200:
+        raise Exception(response.status_code, response.text)
+
+    return response
+
+
+resp = do_request(headers, params)
+
+result = [pd.json_normalize((resp.json()["data"]))]
+for i in range(paginas):
+    if "next_token" not in resp.json()["meta"]:
+        break
+    params["next_token"] = resp.json()["meta"]["next_token"]
+    resp = do_request(headers, params)
+    result.append(pd.json_normalize((resp.json()["data"])))
+
+
 
 # se guarda la respuesta como un dataframe de pandas
-df = pd.json_normalize(response.json()['data'])
+#df = pd.json_normalize(result)
+df = pd.concat(result)
 
-# print(df)
+
+# print(response.json()["meta"]["next_token"])
 
 # Se guarda el dataframe en un archivo csv
 df.to_csv('tweet_requests.csv') 
